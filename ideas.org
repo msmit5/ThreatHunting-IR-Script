@@ -1,23 +1,30 @@
 
 * Things to implement:
-** Browser history
+** TODO Browser history
   - Must support multiple browsers. At least get Chrome, Firefox, Edge
 
-** Check if microsoft updates are blocked
+** TODO Check if microsoft updates are blocked
   - This is becasue I read about a threat group doing things like this
 
-** Grab firewall rules 
+** TODO Grab firewall rules 
 
-** Get file information for each file in:
+** TODO Get file information for each file in:
   - The Desktop
   - the Downloads folder
   - The documents folder
   - Grab EXEs from the downloads folder (make optional)
   
-** Hash downloads and desktop
+** TODO Hash downloads and desktop
 
-** get ssh related files
+** TODO get ssh related files
   - config
   - known_hosts
   - authorized_keys
-  - 
+
+** TODO Get all users
+
+** TODO Get version information
+  - Windos
+  - Powershell
+
+** TODO Check for AV Exclusions
