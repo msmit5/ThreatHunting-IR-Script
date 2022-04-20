@@ -23,8 +23,15 @@
 
 ** TODO Get all users
 
-** TODO Get version information
+** DONE Get version information
   - Windos
   - Powershell
 
-** TODO Check for AV Exclusions
+** DONE Check for AV Exclusions
+
+** TODO Dump registry
+
+** TODO Fix text output for DNS
+
+** TODO Read more into dumping DNS
+*** TODO Bonus! Parse registry hive and grab the common startup locations
