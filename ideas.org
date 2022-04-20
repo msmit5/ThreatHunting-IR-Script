@@ -21,10 +21,10 @@
   - known_hosts
   - authorized_keys
 
-** TODO Get all users
+** DONE Get all users
 
 ** DONE Get version information
-  - Windos
+  - Windows
   - Powershell
 
 ** DONE Check for AV Exclusions
