@@ -6,6 +6,8 @@
 
 $DEBUG_CLEAN = $true
 $forceExecution = $true
+$HASH_ALGORITHM = "MD5"
+
 
 # $AllowBrowserData = $true 
 # $AllowGetDownloadEXEs = $true 
@@ -28,12 +30,14 @@ $SSH_MAX_AUTH_KEYS = 0
 $basedir = ".\"
 $outputDestination="Exports\" # This is the folder name to export to
 $outPath=$basedir+$outputDestination
+$auditPath = "$outPath\audit.log"
 
 
 #DEBUG: Delete audit.log and make a new one each time
 if($DEBUG_CLEAN){
-    Write-Output "Deleting $outPath\audit.log"
-    Remove-Item $outPath\audit.log 
+    Write-Output "Deleting $auditPath"
+    Remove-Item $outPath
+    # Remove-Item $auditPath 
 }
 
 
@@ -41,8 +45,9 @@ if($DEBUG_CLEAN){
 if(-Not(Test-Path $outPath -PathType Container)){
     New-Item -Path $outPath -ItemType Directory
 
-    Write-Output "Created folder: $outPath" |
-        Out-File "$outPath\audit.log"
+    Write-Output "Writing data to $outPath and writing audit to $auditPath"
+    Write-Output "Created folder: $outPath`nFolder will be used for exporting data!" |
+        Out-File "$auditPath"
 
     # This is here because otherwise the check below would stop the program
     $forceExecution=$true
@@ -50,8 +55,8 @@ if(-Not(Test-Path $outPath -PathType Container)){
 
 
 # Checking if audit.log exists
-if((Test-Path $outPath\audit.log -PathType Leaf) -And (-Not $forceExecution)){
-    Write-Output "File $outPath\audit.log already exists!"
+if((Test-Path $auditPath -PathType Leaf) -And (-Not $forceExecution)){
+    Write-Output "File $auditPath already exists!"
     Write-Output "Exiting! Will not continue!"
     Exit
 }
@@ -63,62 +68,64 @@ if((Test-Path $outPath\audit.log -PathType Leaf) -And (-Not $forceExecution)){
 
 # Begin audit.log
 Write-Output "Beginning at`t $([datetime]::Now.ToUniversalTime())`n" |
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 # General information
 # This is also being written to the audit.log
 Write-Output "------------ General information ------------`n" |
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 Write-Output "Hostname:`t$((Get-CimInstance -ClassName Win32_ComputerSystem).Name)" | 
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 Write-Output "Username:`t$ENV:USERNAME`n" | 
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 $AVStatus = Get-MpComputerStatus # This variable will be referenced again later
 
 # Getting version info
+Write-Output "Retrieving version information for OS, Powershell, and Windows Defender"
 Write-Output "OS Version:`t`t`t`t$([System.Environment]::OSVersion.VersionString)" | 
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 Write-Output "Powershell Version:`t`t$($PSVersionTable.BuildVersion)`n" | 
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 Write-Output "Windows Defender Version:`t`t$($AVStatus.AMProductVersion)" |
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 Write-Output "Windows Defender Signatures:`t$($AVStatus.AntivirusSignatureVersion)" |
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 Write-Output "Windows Defender Sig. Date:`t`t$($AVStatus.AntivirusSignatureLastUpdated)`n`n" |
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 
 # Getting users
 $LocalUsers = Get-LocalUser
 
+Write-Output "Grabbing users"
+
 Write-Output "Enabled users:" |
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 $LocalUsers | ForEach-Object{
     if($_.Enabled){
         Write-Output "Name:`t`t`t $($_.Name)" 
         Write-Output "Description:`t $($_.Description)`n"
     }
-} | Out-File -Append "$outPath\audit.log"
+} | Out-File -Append "$auditPath"
 
 # Getting disabled users
 Write-Output "`nDisabled users:"  |
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 $LocalUsers | ForEach-Object{
     if (-not $_.Enabled){
         Write-Output "Name:`t`t`t $($_.Name)" 
-
         Write-Output "Description:`t $($_.Description)`n" 
     }
-} | Out-File -Append "$outPath\audit.log"
+} | Out-File -Append "$auditPath"
 
 
 # Get IP address of each interface
@@ -128,15 +135,16 @@ Get-NetIPAddress -AddressFamily IPv4 |
 IPv4:`t`t`t$($_.IPAddress)
 DHCP Lifetime:`t$($_.ValidLifetime)
 "
-    } | Out-File -Append "$outPath\audit.log"
+    } | Out-File -Append "$auditPath"
 
 # Dumping DNS Records
 # The reason I am doing CSV, txt, and json is because 
 # I personally love json and I frequently use it while automating things in python
 # I use grep for analysis,
 # CSV is preferred for many people, though
+Write-Output "Dumping DNS Records`n"
 Write-Output "Dumping DNS records to $outPath\dns.csv, $outPath\dns.txt, and $outPath\dns.json`n" |
-    Out-File -Append "$outPath\audit.log"
+    Tee-Object -Append -FilePath $auditPath
 
 $dns = $(Get-DnsClientCache | Select Entry, RecordName, RecordType, Status, TimeToLive, Data)
 $dns | Export-Csv -NoTypeInformation $outPath\dns.csv -Append
@@ -146,35 +154,34 @@ $dns | ConvertTo-Json | Out-File  -Append "$outPath\dns.json"
 
 # Checking AV Status
 Write-Output "------------ Windows Devender AV ------------`n" |
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 Write-Output "AMService Enabled:`t`t`t$($AVStatus.AMServiceEnabled)" |
-    Out-File -Append "$outPath\audit.log"
+    Tee-Object -Append -FilePath $auditPath
 Write-Output "AntiSpyware Enabled:`t`t$($AVStatus.AntiSpywareEnabled)" |
-    Out-File -Append "$outPath\audit.log"
+    Tee-Object -Append -FilePath $auditPath
 Write-Output "AntivirusEnabled:`t`t`t$($AVStatus.AntivirusEnabled)" |
-    Out-File -Append "$outPath\audit.log"
+    Tee-Object -Append -FilePath $auditPath
 Write-Output "BehavioralEnabled:`t`t`t$($AVStatus.BehaviorMonitorEnabled)`n" |
-    Out-File -Append "$outPath\audit.log"
+    Tee-Object -Append -FilePath $auditPath
 
 Write-Output "Windows Defender Exclusions:`nNote that no output means there is no exclusions`n" |
-    Out-File -Append "$outPath\audit.log"
+    Out-File -Append "$auditPath"
 
 
 $AVPreferences = Get-MpPreference # This variable is referenced to determine exclusions
 
 Write-Output "Extensions:`t`t$($AVPreferences.ExclusionExtension)`n" |
-    Out-File -Append "$outPath\audit.log"
+    Tee-Object -Append -FilePath $auditPath
 
 Write-Output "IP Addresses:`t$($AVPreferences.ExclusionIpAddress)`n" |
-    Out-File -Append "$outPath\audit.log"
+    Tee-Object -Append -FilePath $auditPath
 
 Write-Output "Paths:`t`t`t$($AVPreferences.ExclusionIpAddress)`n" | 
-    Out-File -Append "$outPath\audit.log"
+    Tee-Object -Append -FilePath $auditPath
 
 Write-Output "Processes:`t`t$($AVPreferences.ExclusionProcess)`n" |
-    Out-File -Append "$outPath\audit.log"
-
+    Tee-Object -Append -FilePath $auditPath
 
 # +------------------+
 # │   PROCESS DATA   │
@@ -182,7 +189,7 @@ Write-Output "Processes:`t`t$($AVPreferences.ExclusionProcess)`n" |
 
 #Logging in audit.log
 Write-Output "Gathering Process information to processes.txt`t $([datetime]::Now.ToUniversalTime())`n" |
-    Out-File -Append "$outPath\audit.log"
+    Tee-Object -Append -FilePath $auditPath
 
 # Snapshot of running processes
 Get-Process | Out-File "$outPath\processes.txt"
@@ -206,14 +213,90 @@ Write-Output "`n`n" |
     Out-File -Append "$outPath\processes.txt"
 
 
+# +------------------+
+# │  FILE  SCANNING  │
+# |   (User files)   |
+# +------------------+
+
+# Enumerate through the users' Desktop, Documents, and Downloads folder
+# Hash all files, and add them to a table (CSV and optionally JSON too)
+# Optionally, export 
+
+Get-ChildItem "C:\Users" |
+    ForEach-Object {
+        # user Public has different file names, we need to account for that
+        Get-ChildItem $_.FullName | ForEach-Object {
+            if (($_.Name -eq "Downloads") -or ($_.Name -eq "Documents") -or ($_.name -eq "Desktop")){
+                Get-ChildItem $_.FullName | ForEach-Object {
+                    Get-FileHash -Path "$($_.FullName)" -Algorithm $HASH_ALGORITHM |
+                        Export-Csv -Append $outPath\testcsv.csv
+                }
+            } 
+        } 
+        # Start another parrallel operation that parses each one of the three folders
+    }
+
 
 # BELOW HERE ARE POTENTIALLY EXTRANEOUS OPERATIONS
 # THEY ARE ORDERED BY USEFULNESS
 # SOME OF THEM ARE INCLUDED BECAUSE THEY MAY BE USEFUL IN A COMPETITION SETTING!
-
+# +------------------+
+# │  GET .SSH INFO   │
+# |    (Optional)    |
+# +------------------+
 if($GetSSHData){
+    # Test for each user
+    Write-Output "Retrieving SSH Data" | 
+        Tee-Object -Append -FilePath "$auditPath"
 
+    $count = 0
+    # Enumerate through the users folder and search through their ssh files
+    Get-ChildItem "C:\Users" |
+        ForEach-Object {
+            # Test if the .ssh directory exists.
+            if (Test-Path "$($_.FullName)\.ssh" -PathType Container){
+
+                # Check if there is an authorized keys file
+                if (Test-Path "$($_.FullName)\.ssh\authorized_keys"){
+                    Write-Output "authorized_keys file found for $($_.Name)! File is being copied to Exports!" |
+                        Tee-Object -Append -FilePath $auditPath
+                    
+                    Copy-Item -Path "$($_.FullName)\.ssh\authorized_keys" -Destination "$outPath\authorized_keys-$($_.Name)"
+
+                    # Getting an accurate count of entries in the authorized_keys file
+                    # There is supposed to be one entry per line (and each entry is one line)
+                    # However, whitespace is ignored, and I don't want to count it!
+                    #https://community.idera.com/database-tools/powershell/powertips/b/tips/posts/ignoring-empty-lines
+                    $lc = (Get-Content -Path "$($_.FullName)\.ssh\authorized_keys" | 
+                        Where-Object { $_.Trim() -ne '' } |
+                        Measure-Object -Line).Lines
+                    
+                    if ($lc -gt $SSH_MAX_AUTH_KEYS){
+                        Write-Output "There are more entries in $($_.FullName)\authorized_keys than allowed!" |
+                            Tee-Object -Append -FilePath $auditPath
+                    }
+                }
+                if (Test-Path "$($_.FullName)\.ssh\known_hosts"){
+                    Write-Output "known_hosts file found for $($_.Name)! File is being copied to Exports!" |
+                        Tee-Object -Append -FilePath $auditPath
+
+                    Copy-Item -Path "$($_.FullName)\.ssh\known_hosts" -Destination "$outPath\known_hosts-$($_.Name)"
+                }
+                if (Test-Path "$($_.FullName)\.ssh\config"){
+                    Write-Output "ssh config file found for $($_.Name)! File is being copied to Exports!" |
+                        Tee-Object -Append -FilePath $auditPath
+
+                    Copy-Item -Path "$($_.FullName)\.ssh\config" -Destination "$outPath\ssh_config-$($_.Name)"
+                }
+                $count++
+            }
+        } #End ForEach
+    if($count -eq 0){
+        Write-Output "No SSH files found!" |
+            Tee-Object -Append -FilePath $auditPath
+    }
 }
+
 
 # +------------------+
 # │  FIREWALL RULES  │
@@ -224,7 +307,7 @@ if($GetSSHData){
 # I am unfamiliar with windows firewall.
 if ($AllowGetFirewallRules){
     Write-Output "Dumping firewall rules to $outPath\firewall-rules.csv, $outPath\firewall-rules.txt, and $outPath\firewall-rules.json" |
-        Out-File -Append "$outPath\audit.log"
+        Tee-Object -Append -FilePath $auditPath
 
     $firewallRules = Get-NetFirewallRule
 
@@ -234,30 +317,3 @@ if ($AllowGetFirewallRules){
         Out-File "$outPath\firewall-rules.json"
 
 }
-
-# +------------------+
-# │  GET .SSH INFO   │
-# |    (Optional)    |
-# +------------------+
-if($GetSSHData){
-    # Test for each user
-    Write-Output "Retrieving SSH Data" | 
-        Out-File -Append "$outPath\audit.log"
-    Get-ChildItem "C:\Users" |
-        ForEach-Object {
-            # Test if the .ssh directory exists.
-            if (Test-Path "$($_.FullName)\.ssh" -PathType Container){
-
-                # Check if there is an authorized keys file
-                if (Test-Path "$($_.FullName)\.ssh\authorized_keys"){
-                    Write-Output "authorized_keys file found!`nFile is being copied to Exports!"
-                }
-            }
-        }
-    
-}
-
-
-# +-------------------+
-# │ FUNTIONS N THINGS │
-# +-------------------+

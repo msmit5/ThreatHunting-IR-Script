@@ -6,7 +6,7 @@
 ** TODO Check if microsoft updates are blocked
   - This is becasue I read about a threat group doing things like this
 
-** TODO Grab firewall rules 
+** DONE Grab firewall rules 
 
 ** TODO Get file information for each file in:
   - The Desktop
@@ -16,10 +16,12 @@
   
 ** TODO Hash downloads and desktop
 
-** TODO get ssh related files
+** DONE get ssh related files
   - config
   - known_hosts
   - authorized_keys
+
+** DONE Parse SSH authorized_keys
 
 ** DONE Get all users
 
@@ -32,6 +34,8 @@
 ** TODO Dump registry
 
 ** TODO Fix text output for DNS
+
+** TODO Grab 
 
 ** TODO Read more into dumping DNS
 *** TODO Bonus! Parse registry hive and grab the common startup locations
