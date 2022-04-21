@@ -8,10 +8,14 @@ $DEBUG_CLEAN = $true
 $forceExecution = $true
 $HASH_ALGORITHM = "MD5"
 
+# Not exactly recommended in most cases.
+$ExportUserExecutables = $false
+$ExportTmpExecutables = $true   # It is more likely a executable in a tmp folder is malicious than it isn't.
+$ExportableExtensions = ".exe",".py",".dll",".ps1",".bat",".msi"
+$SuspiciousTMP = ".zip",".rar",".7z",".txt",".docx",".xlsx"
+$SuspiciousTMP += $ExportableExtensions # Executables in tmp are suspicious
 
-# $AllowBrowserData = $true 
-# $AllowGetDownloadEXEs = $true 
-# $BeginScan = $true 
+
 $AllowGetFirewallRules = $false # Generally, this isn't useful
 
 # SSH Related info
@@ -53,6 +57,9 @@ if(-Not(Test-Path $outPath -PathType Container)){
     $forceExecution=$true
 }
 
+if($ExportUserExecutables -or $ExportTmpExecutables){
+    New-Item -Path "$outPath\Executables" -ItemType Directory
+}
 
 # Checking if audit.log exists
 if((Test-Path $auditPath -PathType Leaf) -And (-Not $forceExecution)){
@@ -221,25 +228,78 @@ Write-Output "`n`n" |
 # Enumerate through the users' Desktop, Documents, and Downloads folder
 # Hash all files, and add them to a table (CSV and optionally JSON too)
 # Optionally, export 
+Write-Output "Hashing user files...`nThis might take a while..."
+Write-Output "Hashing files in all user's Downloads, Documents, and Desktop directories" | 
+    Out-File -Append $auditPath
 
 Get-ChildItem "C:\Users" |
     ForEach-Object {
         # user Public has different file names, we need to account for that
         Get-ChildItem $_.FullName | ForEach-Object {
             if (($_.Name -eq "Downloads") -or ($_.Name -eq "Documents") -or ($_.name -eq "Desktop")){
-                Get-ChildItem $_.FullName | ForEach-Object {
-                    Get-FileHash -Path "$($_.FullName)" -Algorithm $HASH_ALGORITHM |
-                        Export-Csv -Append $outPath\testcsv.csv
+                Get-ChildItem $_.FullName -Recurse| ForEach-Object {
+                    if (-not ((Get-Item $_.FullName) -is [System.IO.DirectoryInfo])){
+                        Get-FileHash -Path "$($_.FullName)" -Algorithm MD5|
+                            Export-Csv -Append $outPath\hashes.csv
+                    }
+
+                    # Export executables and scripts if found in these files
+                    # Only do so if enabled ($ExportUserExecutables = $true)
+                    # -export is added to the name to make it harder to accidentally run a potentially
+                    # malicious file that is grabbed by this script
+                    if($ExportUserExecutables){
+                        if ($ExportableExtensions.Contains($_.Extension)){
+                            Copy-Item -Path $_.FullName -Destination "$outPath\executables\$($_.name)-export"
+                    }
                 }
             } 
         } 
-        # Start another parrallel operation that parses each one of the three folders
     }
+}
+
+
+# +------------------+
+# │  FILE  SCANNING  │
+# |   (Temp files)   |
+# +------------------+
+# Determining all temp locations
+[array]$searchable = Get-ChildItem "C:\Users" | 
+    ForEach-Object{
+        # Because Public doesn't have an appdata or tmp, it is ignored
+        if(-not ($_.name -eq "Public")){
+            "$($_.FullName)\AppData\Local\Temp"
+        }
+    }
+$searchable += "C:\Windows\Temp"
+
+Write-Output "Examining temporary folders:" |
+    Tee-Object -Append $auditPath
+
+Get-ChildItem -Recurse $searchable | ForEach-Object {
+
+    # Check if a file in a temp directory has a suspicious extension
+    if($SuspiciousTMP.Contains($_.Extension)){
+        Write-Output "Possible suspicious temp file found: $($_.fullName)" |
+            Tee-Object -Append -FilePath $auditPath
+        
+        # Hash the suspicious file
+        Get-FileHash -Path "$($_.FullName)" -Algorithm MD5|
+            Export-Csv -Append $outPath\hashes.csv
+    }
+
+    # If enabled, export executables from temp
+    if($ExportTmpExecutables){
+        if($ExportableExtensions.Contains($_.Extension)){
+            Copy-Item -Path $_.FullName -Destination "$outPath\Executables\$($_.name)-export"
+        }
+    }
+}
 
 
 # BELOW HERE ARE POTENTIALLY EXTRANEOUS OPERATIONS
 # THEY ARE ORDERED BY USEFULNESS
 # SOME OF THEM ARE INCLUDED BECAUSE THEY MAY BE USEFUL IN A COMPETITION SETTING!
+
 # +------------------+
 # │  GET .SSH INFO   │
 # |    (Optional)    |
@@ -271,6 +331,7 @@ if($GetSSHData){
                         Where-Object { $_.Trim() -ne '' } |
                         Measure-Object -Line).Lines
                     
+                    # If we have too many keys in the authorized_keys, it should be examined
                     if ($lc -gt $SSH_MAX_AUTH_KEYS){
                         Write-Output "There are more entries in $($_.FullName)\authorized_keys than allowed!" |
                             Tee-Object -Append -FilePath $auditPath
@@ -282,6 +343,7 @@ if($GetSSHData){
 
                     Copy-Item -Path "$($_.FullName)\.ssh\known_hosts" -Destination "$outPath\known_hosts-$($_.Name)"
                 }
+
                 if (Test-Path "$($_.FullName)\.ssh\config"){
                     Write-Output "ssh config file found for $($_.Name)! File is being copied to Exports!" |
                         Tee-Object -Append -FilePath $auditPath
