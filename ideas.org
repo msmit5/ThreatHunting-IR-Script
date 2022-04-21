@@ -31,11 +31,14 @@
 
 ** DONE Check for AV Exclusions
 
+** TODO Check open ports
+
 ** TODO Dump registry
 
-** TODO Fix text output for DNS
+** DONE Fix text output for DNS
+   - Decided not to deal with DNS text output
 
-** TODO Grab the prefetch files
+** DONE Grab the prefetch files
 
 ** TODO Read more into dumping DNS
 *** TODO Bonus! Parse registry hive and grab the common startup locations
