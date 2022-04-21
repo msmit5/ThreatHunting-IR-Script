@@ -4,7 +4,7 @@
 # |    AND SETUP     |
 # +------------------+
 
-$DEBUG_CLEAN = $true      # Deletes the exports file
+$DEBUG_CLEAN = $false      # Deletes the exports file
 $forceExecution = $true
 
 # HASHING ALGORITHM USED
@@ -36,6 +36,8 @@ $SSH_MAX_AUTH_KEYS = 0
 $eventLogTargets="Security", "System" # Normally I would include powershell logging, but I do not have access to a computer that can log powershell
 $maxLogEntries = 500 #Amount of entries to export
 
+# Optionally, dump registry keys
+# Further, the investigated locations are stored in a list here
 $dumpRegistryAutoruns = $true
 $RegistryAutorunsLocations = "HKCU:Software\Microsoft\Windows\CurrentVersion\Run", "HKCU:Software\Microsoft\Windows\CurrentVersion\RunOnce", "HKLM:Software\Microsoft\Windows\CurrentVersion\Run", "HKLM:Software\Microsoft\Windows\CurrentVersion\RunOnce"
 $RegistryAutoServicesLocations = "HKCU:Software\Microsoft\Windows\CurrentVersion\RunServices", "HKCU:Software\Microsoft\Windows\CurrentVersion\RunServicesOnce", "HKLM:Software\Microsoft\Windows\CurrentVersion\RunServices", "HKLM:Software\Microsoft\Windows\CurrentVersion\RunServicesOnce"
@@ -189,7 +191,9 @@ Get-NetTCPConnection |
   Export-Csv $outPath\netconnections.csv
 
 
-# Checking AV Status
+# +------------------+
+# │    AV  STATUS    │
+# +------------------+
 Write-Output "------------ Windows Devender AV ------------`n" |
   Out-File -Append "$auditPath"
 
