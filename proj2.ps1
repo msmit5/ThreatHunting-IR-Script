@@ -193,9 +193,9 @@ Get-NetTCPConnection |
 Write-Output "------------ Windows Devender AV ------------`n" |
   Out-File -Append "$auditPath"
 
-Write-Output "AMService Enabled:`t`t`t$($AVStatus.AMServiceEnabled)" |
+Write-Output "`nAMService Enabled:`t`t`t$($AVStatus.AMServiceEnabled)" |
   Tee-Object -Append -FilePath $auditPath
-Write-Output "AntiSpyware Enabled:`t`t$($AVStatus.AntiSpywareEnabled)" |
+Write-Output "AntiSpyware Enabled:`t`t`t$($AVStatus.AntiSpywareEnabled)" |
   Tee-Object -Append -FilePath $auditPath
 Write-Output "AntivirusEnabled:`t`t`t$($AVStatus.AntivirusEnabled)" |
   Tee-Object -Append -FilePath $auditPath
@@ -237,7 +237,7 @@ Write-Output "`n" |
 
 # Startup processes
 Write-Output "----------------------STARTUP PROCESSES---------------------`n" |
-  Out-File -Append $outPath\processes,txt
+  Out-File -Append $outPath\processes.txt
 
 Get-Process |
   Export-Csv -Append "$outPath\processes.csv"
@@ -460,13 +460,13 @@ if ($GetSSHData) {
 # I am not a registry wizard, so I plan on dumping only what I see in autoruns
 
 if ($dumpRegistryAutoruns) {
-  $PSStyle.OutputRendering = [System.Management.Automation.OutputRendering]::PlainText; # This should have fixed the colors error :(
+  # $PSStyle.OutputRendering = [System.Management.Automation.OutputRendering]::PlainText; # This should have fixed the colors error :(
 
-  Write-Output "Checking registry for autoruns" | 
+  Write-Output "`nChecking registry for autoruns" | 
     Tee-Object -Append -FilePath $auditPath
 
   $RegistryAutorunsLocations | Get-Item |
-    Tee-Object -append $outPath\registry-autoruns.txt -Encoding ascii
+    Tee-Object -append $outPath\registry-autoruns.txt
     
     # These keys don't always exist
   $RegistryAutoServicesLocations | ForEach-Object{
